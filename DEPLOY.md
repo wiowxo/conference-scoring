@@ -33,8 +33,7 @@ sudo apt install git -y && git clone https://github.com/wiowxo/conference-scorin
 
 ```bash
 cd conference-scoring
-git pull
-sudo docker compose --env-file .env.production up -d --build
+git pull && sudo docker compose --env-file .env.production up -d --build --force-recreate
 ```
 
 ## Полезные команды
