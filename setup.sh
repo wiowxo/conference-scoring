@@ -86,8 +86,8 @@ mkdir -p "$APP_DIR/nginx/conf.d" \
          "$APP_DIR/certbot/work" \
          "$APP_DIR/certbot/logs"
 
-# Stop any running containers
-docker compose --env-file "$APP_DIR/.env.production" down --remove-orphans 2>/dev/null || true
+# Stop any running containers and clean volumes
+docker compose --env-file "$APP_DIR/.env.production" down --remove-orphans -v 2>/dev/null || true
 docker network prune -f 2>/dev/null || true
 
 # Free port 80
@@ -124,6 +124,10 @@ sed "s/DOMAIN_PLACEHOLDER/$DOMAIN/g" "$APP_DIR/nginx/conf.d/default.conf" > "$AP
 rm -f "$APP_DIR/nginx/conf.d/default.conf"
 rm -f "$APP_DIR/nginx/conf.d/init.conf"
 echo -e "${GREEN}Nginx configured.${NC}"
+
+# Remove old postgres volume if exists (prevents password mismatch on reinstall)
+echo -e "${YELLOW}Cleaning up old Docker volumes...${NC}"
+docker volume rm conference-scoring_postgres_data 2>/dev/null || true
 
 # Start DB first and reset to clean state
 echo ""
