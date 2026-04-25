@@ -161,24 +161,11 @@ if docker compose --env-file "$APP_DIR/.env.production" ps | grep -qE "Restartin
     echo "  sudo docker compose --env-file .env.production logs nginx"
     echo "  sudo docker compose --env-file .env.production logs db"
 else
-    # Create organizer account via SQL
+    # Create organizer account
     echo -e "${YELLOW}Creating organizer account...${NC}"
     sleep 5
-
-    # Generate bcrypt hash of 'admin'
-    ADMIN_HASH=$(docker compose --env-file "$APP_DIR/.env.production" exec -T app node -e "
-const bcrypt = require('bcryptjs');
-bcrypt.hash('admin', 12).then(h => process.stdout.write(h));
-")
-
-    # Insert organizer directly into DB
-    docker compose --env-file "$APP_DIR/.env.production" exec -T db psql -U postgres -d conference_scoring -c "
-INSERT INTO \"Organizer\" (login, \"passwordHash\", \"mustChangePassword\", \"createdAt\", \"updatedAt\")
-VALUES ('admin', '$ADMIN_HASH', true, NOW(), NOW())
-ON CONFLICT (login) DO UPDATE SET \"passwordHash\" = '$ADMIN_HASH', \"mustChangePassword\" = true;
-"
-
-    echo -e "${GREEN}Organizer created: admin / admin${NC}"
+    docker compose --env-file "$APP_DIR/.env.production" exec -T app node /app/scripts/reset-password.js
+    echo -e "${GREEN}Organizer ready: admin / admin${NC}"
 
     echo ""
     echo -e "${GREEN}================================================${NC}"
