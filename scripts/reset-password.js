@@ -1,20 +1,13 @@
-const { Client } = require("pg");
-const bcrypt = require("bcryptjs");
+const { execSync } = require('child_process');
+const bcrypt = require('bcryptjs');
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
-  await client.connect();
+  const hash = await bcrypt.hash('admin', 12);
+  const sql = `UPDATE "Organizer" SET "passwordHash" = '${hash}', "mustChangePassword" = true WHERE login = 'admin';`;
 
-  const hash = await bcrypt.hash("admin", 12);
-  await client.query(
-    `UPDATE "Organizer" SET "passwordHash" = $1, "mustChangePassword" = true`,
-    [hash]
-  );
-
-  const { rows } = await client.query(`SELECT COUNT(*) FROM "Organizer"`);
-  console.log(`Password reset to "admin" for ${rows[0].count} organizer(s). Must change on next login.`);
-
-  await client.end();
+  const result = execSync(`psql "${process.env.DATABASE_URL}" -c "${sql}"`).toString();
+  console.log(result);
+  console.log('Password reset to "admin". Must change on next login.');
 }
 
-main().catch(console.error);
+main().catch(e => { console.error(e.message); process.exit(1); });
