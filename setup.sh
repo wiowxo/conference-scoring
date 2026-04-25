@@ -55,7 +55,9 @@ echo "App directory: $APP_DIR"
 echo ""
 echo -e "${YELLOW}Enter setup details:${NC}"
 read -p "Domain name (e.g. rgsu-conf.ru): " DOMAIN
-read -p "Email for SSL certificate: " EMAIL
+read -p "Email for SSL certificate: " EMAIL_RAW
+EMAIL=$(echo "$EMAIL_RAW" | tr -cd '[:print:]' | sed 's/[^a-zA-Z0-9@._+-]//g')
+echo "Using email: $EMAIL"
 echo -n "Database password (Enter to auto-generate): "
 read -s POSTGRES_PASSWORD
 echo ""
