@@ -1,0 +1,158 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ConferenceStatus {
+  ACTIVE
+  FINISHED
+}
+
+model Conference {
+  id               Int              @id @default(autoincrement())
+  name             String           @db.VarChar(256)
+  date             DateTime
+  status           ConferenceStatus @default(ACTIVE)
+  resultsPublished Boolean          @default(false)
+  useSlider        Boolean          @default(true)
+  useDefaultRange       Boolean          @default(false)
+  qualityZonesTemplate  Json?
+  halls            Hall[]
+  sections         Section[]
+  criteria         Criterion[]
+  juryMembers      JuryMember[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Hall {
+  id           Int           @id @default(autoincrement())
+  conferenceId Int
+  conference   Conference    @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  name         String        @db.VarChar(256)
+  sections     Section[]
+  votingStatus VotingStatus?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Section {
+  id              Int                     @id @default(autoincrement())
+  conferenceId    Int
+  conference      Conference              @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  hallId          Int?
+  hall            Hall?                   @relation(fields: [hallId], references: [id], onDelete: SetNull)
+  name            String                  @db.VarChar(256)
+  order           Int                     @default(0)
+  presenters      Presenter[]
+  juryAssignments JurySectionAssignment[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+}
+
+model Presenter {
+  id         Int      @id @default(autoincrement())
+  sectionId  Int
+  section    Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  name       String
+  topic      String
+  supervisor String?
+  position   String?
+  order      Int
+  scores     Score[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Criterion {
+  id              Int            @id @default(autoincrement())
+  conferenceId    Int
+  conference      Conference     @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  name            String         @db.VarChar(256)
+  minScore        Float
+  maxScore        Float
+  order           Int            @default(0)
+  useQualityZones Boolean        @default(false)
+  scores          Score[]
+  qualityZones    QualityZone[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model QualityZone {
+  id          Int       @id @default(autoincrement())
+  criterionId Int
+  criterion   Criterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  label       String    @db.VarChar(100)
+  minValue    Float
+  maxValue    Float
+  color       String    @db.VarChar(20)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model JuryMember {
+  id                 Int                     @id @default(autoincrement())
+  conferenceId       Int
+  conference         Conference              @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  name               String                  @db.VarChar(256)
+  login              String                  @unique
+  passwordHash       String
+  plaintextPassword  String?
+  scores             Score[]
+  sectionAssignments JurySectionAssignment[]
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+}
+
+model JurySectionAssignment {
+  id           Int        @id @default(autoincrement())
+  juryMemberId Int
+  juryMember   JuryMember @relation(fields: [juryMemberId], references: [id], onDelete: Cascade)
+  sectionId    Int
+  section      Section    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([juryMemberId, sectionId])
+}
+
+model Score {
+  id            Int        @id @default(autoincrement())
+  juryMemberId  Int
+  juryMember    JuryMember @relation(fields: [juryMemberId], references: [id], onDelete: Cascade)
+  presenterId   Int
+  presenter     Presenter  @relation(fields: [presenterId], references: [id], onDelete: Cascade)
+  criterionId   Int
+  criterion     Criterion  @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  value         Float?
+  isValid       Boolean    @default(true)
+  previousValue Float?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([juryMemberId, presenterId, criterionId])
+}
+
+model Organizer {
+  id                 Int      @id @default(autoincrement())
+  login              String   @unique
+  passwordHash       String
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model VotingStatus {
+  id        Int      @id @default(autoincrement())
+  hallId    Int      @unique
+  hall      Hall     @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  isOpen    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
