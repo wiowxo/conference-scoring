@@ -1,17 +1,20 @@
-require("dotenv/config");
-const { PrismaClient } = require("@prisma/client");
-const { PrismaPg } = require("@prisma/adapter-pg");
+const { Client } = require("pg");
 const bcrypt = require("bcryptjs");
 
 async function main() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-  const prisma = new PrismaClient({ adapter });
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+
   const hash = await bcrypt.hash("admin", 12);
-  await prisma.organizer.updateMany({
-    data: { passwordHash: hash, mustChangePassword: true },
-  });
-  console.log('Password reset to "admin". Organizer must change it on next login.');
-  await prisma.$disconnect();
+  await client.query(
+    `UPDATE "Organizer" SET "passwordHash" = $1, "mustChangePassword" = true`,
+    [hash]
+  );
+
+  const { rows } = await client.query(`SELECT COUNT(*) FROM "Organizer"`);
+  console.log(`Password reset to "admin" for ${rows[0].count} organizer(s). Must change on next login.`);
+
+  await client.end();
 }
 
 main().catch(console.error);

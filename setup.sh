@@ -161,26 +161,24 @@ if docker compose --env-file "$APP_DIR/.env.production" ps | grep -qE "Restartin
     echo "  sudo docker compose --env-file .env.production logs nginx"
     echo "  sudo docker compose --env-file .env.production logs db"
 else
-    # Create default organizer account
+    # Create organizer account via SQL
     echo -e "${YELLOW}Creating organizer account...${NC}"
     sleep 5
-    docker compose --env-file "$APP_DIR/.env.production" exec -T app node -e "
+
+    # Generate bcrypt hash of 'admin'
+    ADMIN_HASH=$(docker compose --env-file "$APP_DIR/.env.production" exec -T app node -e "
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-async function main() {
-  const hash = await bcrypt.hash('admin', 12);
-  await prisma.organizer.upsert({
-    where: { login: 'admin' },
-    update: { passwordHash: hash, mustChangePassword: true },
-    create: { login: 'admin', passwordHash: hash, mustChangePassword: true }
-  });
-  console.log('Organizer account created');
-  await prisma.\$disconnect();
-}
-main().catch(e => { console.error(e); process.exit(1); });
+bcrypt.hash('admin', 12).then(h => process.stdout.write(h));
+")
+
+    # Insert organizer directly into DB
+    docker compose --env-file "$APP_DIR/.env.production" exec -T db psql -U postgres -d conference_scoring -c "
+INSERT INTO \"Organizer\" (login, \"passwordHash\", \"mustChangePassword\", \"createdAt\", \"updatedAt\")
+VALUES ('admin', '$ADMIN_HASH', true, NOW(), NOW())
+ON CONFLICT (login) DO UPDATE SET \"passwordHash\" = '$ADMIN_HASH', \"mustChangePassword\" = true;
 "
-    echo -e "${GREEN}Organizer account ready: admin / admin${NC}"
+
+    echo -e "${GREEN}Organizer created: admin / admin${NC}"
 
     echo ""
     echo -e "${GREEN}================================================${NC}"
